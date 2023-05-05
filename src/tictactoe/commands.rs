@@ -1,52 +1,19 @@
-use std::net::UdpSocket;
+pub use super::board::*;
 use std::io;
+use std::net::UdpSocket;
 
-use super::tictactoe;
 
-pub enum CommandList{
-    Empty,
-    Create(Option<i32>),
-    Delete(Option<i32>),
-    Move(Option<GameMoveInst>),
-}
 
 #[derive(Debug, Default)]
 pub struct GameMoveInst{
     pub board:u64,
-    pub player:tictactoe::GameSquare,
+    pub player:GameSquare,
     pub x_cord:usize,
     pub y_cord:usize,
 }
 
-impl CommandList{
-    pub fn to_u8(self) -> u8 {
-        use CommandList::*;
-        match self {
-            Empty => 0u8,
-            Create(_) => 1u8,
-            Delete(_) => 2u8,
-            Move(_) => 3u8,
-        }
-    }
+impl GameMoveInst {
     
-    pub fn from_u8(value: u8) -> Self {
-        use CommandList::*;
-        match value {
-            test @ 0 => Empty,
-            test @ 1 => Create(None),
-            test @ 2 => Delete(None),
-            test => Move(None),
-        }
-    }
-    
-}
-
-pub fn test(){
-    println!("test");
-}
-
-
-impl GameMoveInst{
     pub fn new() -> Self {
         Self::default()
     }
@@ -60,7 +27,7 @@ impl GameMoveInst{
         self.board = u64::from(buf[0]-b'1');
         //println!("{:?}", board/*-0x3131313131313131usize*/);
         
-        self.player = tictactoe::GameSquare::parse_char_sock(buf[1]);
+        self.player = GameSquare::parse_char_sock(buf[1]);
         
         self.x_cord = usize::from(buf[2]-b'1');
         
@@ -70,9 +37,6 @@ impl GameMoveInst{
         
         println!("{:?}", buf);
     }
-        /*
-        let board = usize::from_ne_bytes(buf[0..8].try_into().unwrap());
-        */
     
     #[allow(dead_code)]
     fn fill_from_stdio(&mut self) {
@@ -87,7 +51,7 @@ impl GameMoveInst{
         user_input.clear();
         println!("player: ");
         stdin.read_line(&mut user_input).expect("text");
-        self.player = tictactoe::GameSquare::parse_char_stdio(user_input.as_bytes()[0usize]);
+        self.player = GameSquare::parse_char_stdio(user_input.as_bytes()[0usize]);
         
         user_input.clear();
         println!("X: ");
@@ -103,3 +67,4 @@ impl GameMoveInst{
     }
     
 }
+
