@@ -1,70 +1,103 @@
-pub use super::board::*;
-use std::io;
-use std::net::UdpSocket;
+use std::net::SocketAddr;
 
-
+#[derive(Debug)]
+pub enum GameCommand3T {
+    Empty,
+    Create(GameCreateInst),
+    Connect(GameConnectInst),
+    //Disconnect(),
+    Move(GameMoveInst),
+    //Delete(),
+}
 
 #[derive(Debug, Default)]
 pub struct GameMoveInst{
     pub board:u64,
-    pub player:GameSquare,
+    pub player_code:u64,
+    pub player_socket:Option<SocketAddr>,
     pub x_cord:usize,
     pub y_cord:usize,
 }
 
-impl GameMoveInst {
-    
-    pub fn new() -> Self {
-        Self::default()
-    }
-    
-    #[allow(dead_code)]
-    pub fn fill_from_web(&mut self, socket:&UdpSocket) {
-        let mut buf = [0; 64];
-        let (amt, src) = socket.recv_from(&mut buf).expect("hola");
-        
-        let buffer = &mut buf[..amt];
-        self.board = u64::from(buf[0]-b'1');
-        //println!("{:?}", board/*-0x3131313131313131usize*/);
-        
-        self.player = GameSquare::parse_char_sock(buf[1]);
-        
-        self.x_cord = usize::from(buf[2]-b'1');
-        
-        self.y_cord = usize::from(buf[3]-b'1');
-        
-        let x_cord = 0;
-        
-        println!("{:?}", buf);
-    }
-    
-    #[allow(dead_code)]
-    fn fill_from_stdio(&mut self) {
-        let mut user_input = String::new();
-        let stdin = io::stdin();
-        
-        println!("Board: ");
-        stdin.read_line(&mut user_input).expect("text");
-        user_input.pop();
-        self.board = user_input.parse::<u64>().expect("boardName");
-        
-        user_input.clear();
-        println!("player: ");
-        stdin.read_line(&mut user_input).expect("text");
-        self.player = GameSquare::parse_char_stdio(user_input.as_bytes()[0usize]);
-        
-        user_input.clear();
-        println!("X: ");
-        stdin.read_line(&mut user_input).unwrap();
-        user_input.pop();
-        self.x_cord = user_input.parse::<usize>().expect("positive Number");
-        
-        user_input.clear();
-        println!("Y: ");
-        stdin.read_line(&mut user_input).unwrap();
-        user_input.pop();
-        self.y_cord = user_input.parse::<usize>().expect("positive Number");
-    }
-    
+
+#[derive(Debug, Default)]
+pub struct GameCreateInst{
+    pub board:u64,
+    pub player_code:u64,
+    pub player_socket:Option<SocketAddr>,
 }
 
+#[derive(Debug, Default)]
+pub struct GameConnectInst{
+    pub board:u64,
+    pub player_code:u64,
+    pub player_socket:Option<SocketAddr>,
+}
+
+const CREATE_COMMAND_BUFFSIZE:usize = 8+8;
+const CONNECT_COMMAND_BUFFSIZE:usize = 8+8;
+const MOVE_COMMAND_BUFFSIZE:usize = 8+8+1+1;
+impl GameCommand3T {
+    
+    pub fn parse_create_command(&mut self, buff:&[u8], socket:SocketAddr) -> Result<(), &'static str>{
+        if buff.len() != CREATE_COMMAND_BUFFSIZE {
+            return Err("incorrect buff size");
+        }
+        let mut holder = GameCreateInst::default();
+        holder.board = u64::from_le_bytes(buff[0..8].try_into().expect("right value array"));
+        holder.player_code = u64::from_le_bytes(buff[8..16].try_into().expect("right value array"));
+        holder.player_socket = Some(socket);
+        *self = GameCommand3T::Create(holder);
+        Ok(())
+    }
+    
+    pub fn parse_connect_command(&mut self, buff:&[u8], socket:SocketAddr) -> Result<(), &'static str>{
+        if buff.len() != CONNECT_COMMAND_BUFFSIZE {
+            return Err("incorrect buff size");
+        }
+        let mut holder = GameConnectInst::default();
+        holder.board = u64::from_le_bytes(buff[0..8].try_into().expect("right value array"));
+        holder.player_code = u64::from_le_bytes(buff[8..16].try_into().expect("right value array"));
+        holder.player_socket = Some(socket);
+        *self = GameCommand3T::Connect(holder);
+        Ok(())
+    }
+    
+    pub fn parse_move_command(&mut self, buff:&[u8], socket:SocketAddr) -> Result<(), &'static str>{
+        if buff.len() < MOVE_COMMAND_BUFFSIZE {
+            return Err("Incorrect buffer size");
+        }
+        let mut holder = GameMoveInst::default();
+        holder.board = u64::from_le_bytes(buff[0..8].try_into().expect("right value array"));
+        holder.player_code = u64::from_le_bytes(buff[8..16].try_into().expect("right value array"));
+        holder.player_socket = Some(socket);
+        holder.x_cord = buff[16].into();
+        holder.y_cord = buff[17].into();
+        
+        *self = GameCommand3T::Move(holder);
+        Ok(())
+        /*
+        match self {
+            GameCommand3T::Empty => {},
+            _ => {
+                return Err("Non empty Game Command");
+            }
+        }
+        let mut holder = GameMoveInst::new();
+        
+        holder.board = u64::from_le_bytes(buff[0..8].try_into().expect("right value array"));
+        holder.player = match GameSquare::try_from(buff[9]) {
+            Ok(data) if data != GameSquare::Empty => data,
+            _ => {
+                println!("{:?}", buff[9]);
+                panic!();
+            }
+        };
+        holder.x_cord = usize::from_le_bytes(buff[9..17].try_into().expect("right value array"));
+        holder.y_cord = usize::from_le_bytes(buff[17..25].try_into().expect("right value array"));
+        
+        *self = GameCommand3T::Move(holder);
+        Ok(())
+        */
+    }
+}

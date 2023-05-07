@@ -1,116 +1,168 @@
 mod board;
 mod commands;
+mod errors;
 //local modules
+use std::net::SocketAddr;
+
 pub use commands::*;
 pub use board::*;
+pub use errors::*;
 
-pub enum GameErrors{
-    SpaceTaken,
-    NotTurn,
-    BadIndex,
+#[derive(Default)]
+pub struct Game{
+    pub started: bool,
+    pub last: Option<Player>,
+    pub p0_connected:bool,
+    pub p0:u64,
+    pub p0_socket:Option<SocketAddr>,
+    pub p1_connected:bool,
+    pub p1:u64,
+    pub p1_socket:Option<SocketAddr>,
+    pub board: Board,
+}
+
+#[derive(Debug, Default)]
+pub struct BroadcastInstructions{
+    pub p0_connected:bool,
+    pub p0_socket:Option<SocketAddr>,
+    pub p1_connected:bool,
+    pub p1_socket:Option<SocketAddr>,
+    pub board: [u8; 9],
+    
 }
 
 impl Game{
-    pub fn new(p0:u64, p1:u64) -> Self {
+    pub fn new(p0:u64, p0_socket:SocketAddr) -> Self {
         Self{
             board:Board::new(),
+            started: false,
+            p0_connected:true,
             p0,
-            p1,
-            last:GameSquare::Empty
+            p0_socket:Some(p0_socket),
+            p1_connected:false,
+            p1:0,
+            p1_socket:None,
+            last:None,
         }
     }
     
-    pub fn play(&mut self, x:usize, y:usize, player:GameSquare) -> Result<Option<GameSquare>, Option<GameErrors>> {
-        if self.last == player {
-            return Err(Some(GameErrors::NotTurn));
-        }
-        if !Board::index_valid(x) || !Board::index_valid(y) {
-            return Err(Some(GameErrors::BadIndex));
-        }
-        self.last = player;
-        self.board.play(x, y, player)
-    }
-    
-    pub fn print(&self) {
-        self.board.print();
-    }
-}
-
-
-impl Board{
-    pub fn new() -> Self {
-        Self{
-            board:[
-                [GameSquare::Empty, GameSquare::Empty, GameSquare::Empty],
-                [GameSquare::Empty, GameSquare::Empty, GameSquare::Empty],
-                [GameSquare::Empty, GameSquare::Empty, GameSquare::Empty],
-            ]
-        }
-    }
-    
-    pub fn index_valid(index:usize) -> bool {
-        if index < 2 {
-            true
+    pub fn connect(&mut self, args:GameConnectInst) -> Result<BroadcastInstructions, GameErrors> {
+        /*
+        pub board:u64,
+        pub player_code:u64,
+        pub player_socket:Option<SocketAddr>,
+        */
+        if !self.started {
+            if self.p0_connected {
+                if self.p1_connected {
+                    return Err(GameErrors::BoardFull);
+                } else {
+                    self.p1 = args.player_code;
+                    self.p1_socket = args.player_socket;
+                    self.p1_connected = true;
+                }
+            }else {
+                self.p0 = args.player_code;
+                self.p0_socket = args.player_socket;
+                self.p0_connected = true;
+            }
+            let mut holder = BroadcastInstructions{
+                p0_connected:self.p0_connected,
+                p0_socket:self.p0_socket.clone(),
+                p1_connected:self.p1_connected,
+                p1_socket:self.p1_socket.clone(),
+                board: [0; 9],
+            };
+            self.board.board_to_simple(&mut holder.board);
+            Ok(holder)
         } else {
-            false
+            
+            let player = match self.player_from_id(args.player_code) {
+                Some(player) => player,
+                None => { return Err(GameErrors::PlayerNotOnGame) }
+            };
+            
+            match player {
+                Player::P0 => {
+                    self.p0_socket = args.player_socket;
+                }
+                Player::P1 => {
+                    self.p1_socket = args.player_socket;
+                }
+            }
+            let mut holder = BroadcastInstructions{
+                p0_connected:self.p0_connected,
+                p0_socket:self.p0_socket.clone(),
+                p1_connected:self.p1_connected,
+                p1_socket:self.p1_socket.clone(),
+                board: [0; 9],
+            };
+            self.board.board_to_simple(&mut holder.board);
+            Ok(holder)
         }
+        
     }
     
-    pub fn print(&self) {
-        use GameSquare::*;
-        for row in &self.board {
-            for element in row {
-                let printable = match element {
-                    P0 => {
-                        "@"
-                    },
-                    P1 => {
-                        "#"
-                    },
-                    Empty => {
-                        "0"
-                    },
-                };
-                print!("{} ", printable);
+    
+    pub fn play(&mut self, args:GameMoveInst) -> Result<Option<Player>, GameErrors> {
+        /*
+        pub board:u64,
+        pub player_code:u64,
+        pub player_socket:Option<SocketAddr>,
+        pub x_cord:usize,
+        pub y_cord:usize,
+        */
+        let player = match self.player_from_id(args.player_code) {
+            Some(player) => player,
+            None => { return Err(GameErrors::PlayerNotOnGame) }
+        };
+        if !self.started {
+            if !self.p0_connected || !self.p1_connected {
+                return Err(GameErrors::LobbyNotFull);
             }
-            println!("");
+            
+        } else {
+            if self.last == Some(player) {
+                return Err(GameErrors::NotTurn);
+            }
         }
-        println!();
+        if !Board::index_valid(args.x_cord) || !Board::index_valid(args.y_cord) {
+            return Err(GameErrors::BadIndex);
+        }
+        self.last = Some(player);
+        self.started = true;
+        self.board.play(args.x_cord, args.y_cord, player)
     }
     
-    
-    pub fn play(&mut self, x:usize, y:usize, player:GameSquare) -> Result<Option<GameSquare>, Option<GameErrors>> {
-        if player == GameSquare::Empty {
-            return Err(None);
+    fn player_from_id(&self, player_id:u64) -> Option<Player> {
+        if player_id == self.p0 {
+            return Some(Player::P0);
         }
-        if self.board[y][x] != GameSquare::Empty {
-            return Err(Some(GameErrors::SpaceTaken));
-        }
-        self.board[y][x]=player;
-        Ok(self.check_if_win())
-    }
-    
-    pub fn check_if_win(&self) -> Option<GameSquare> {
-        let mut win_con:[i8;8] = [0; 8];
-        for number in 0..3 {
-            win_con[0] += self.board[0][number].get_value();
-            win_con[1] += self.board[1][number].get_value();
-            win_con[2] += self.board[2][number].get_value();
-            win_con[3] += self.board[number][0].get_value();
-            win_con[4] += self.board[number][1].get_value();
-            win_con[5] += self.board[number][2].get_value();
-            win_con[6] += self.board[number][number].get_value();
-            win_con[7] += self.board[number][2-number].get_value();
-        }
-        for number in win_con {
-            if number == -3 {
-                return Some(GameSquare::P0);
-            }
-            if number == 3 {
-                return Some(GameSquare::P1);
-            }
+        if player_id == self.p1 {
+            return Some(Player::P1);
         }
         None
     }
+    
+    
+    pub fn print(&self) {
+        dbg!(self.started);
+        dbg!(self.p0_connected);
+        dbg!(self.p0);
+        dbg!(self.p0_socket);
+        dbg!(self.p1_connected);
+        dbg!(self.p1);
+        dbg!(self.p1_socket);
+    }
+    
+    pub fn print_board(&self) {
+        self.board.print();
+    }
+    
+    pub fn broadcast_ev_move(&self) {
+        
+        
+    }
+    
 }
 
