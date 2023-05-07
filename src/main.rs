@@ -54,25 +54,26 @@ fn main() {
                         }
                     },
                     GameCommand3T::Move(move_cmd) => {
+                        let board_key = move_cmd.board;
                         match handle_move(&mut games, move_cmd) {
                             Err(err_str) => {
                                 println!("error in move :{}", err_str);
                                 continue;
                             },
-                            Ok(possible_winner) => {
+                            Ok((possible_winner, broadcast_instructions)) => {
+                                handle_move_response(&socket, broadcast_instructions);
                                 match possible_winner {
                                     None => {
                                         println!("\t\t no winner this move");
                                     }
                                     Some(winner) => {
                                         println!("---------------------------------");
-                                        println!("{:?}", winner);
-                                        println!("{:?}", winner);
-                                        println!("{:?}", winner);
+                                        println!("wonnnn!!! {:?}", winner);
                                         println!("---------------------------------");
+                                        win_func();
+                                        games.remove(&board_key);
                                     }
                                 }
-                                
                             }
                         }
                     },
@@ -153,7 +154,7 @@ fn handle_connect_response(socket:&UdpSocket, instructions:tictactoe::BroadcastI
 }
 
 
-fn handle_move(games:&mut HashMap<u64,tictactoe::Game>, move_cmd:GameMoveInst) -> Result<Option<Player>, &'static str> {
+fn handle_move(games:&mut HashMap<u64,tictactoe::Game>, move_cmd:GameMoveInst) -> Result<(Option<Player>, tictactoe::BroadcastInstructions), &'static str> {
     println!("-----------------------------------------");
     println!("move");
     println!("-----------------------------------------");
@@ -164,21 +165,54 @@ fn handle_move(games:&mut HashMap<u64,tictactoe::Game>, move_cmd:GameMoveInst) -
         Some(game) => {
             game.print_board();
             match game.play(move_cmd){
-                Ok(potencial_winner_holder) => {
-                    match potencial_winner_holder {
-                        None => Ok(None),
-                        Some(winner) => Ok(Some(winner)),
-                    }
-                },
                 Err(error) => {
                     match error {
                         GameErrors::PlayerNotOnGame => Err("player not on game"),
                         GameErrors::BadIndex => Err("bad index"),
                         _ => Err("programer missed a relevant error type :(")
                     }
-                }
+                },
+                Ok(potencial_winner_holder) => {
+                    Ok(potencial_winner_holder)
+                },
             }
         }
     }
 }
 
+fn handle_move_response(socket:&UdpSocket, instructions:tictactoe::BroadcastInstructions) {
+    //println!("{:?}", instructions);
+    //let bytes = [0u8; 64];
+    if let Some(socket_direction) = instructions.p0_socket.as_ref() {
+        let code = instructions.p0_code;
+        let started = u8::from(instructions.started);
+        let turn = match instructions.turn {
+            0 | 2 => 1u8,
+            _ => 0u8,
+        };
+        let won = match  instructions.winner {
+            1 => 1u8,
+            _ => 0u8
+        };
+        let p0_response = GameResponse3T::build_move_response(code, turn, started, &instructions.board, won);
+        let _ = connection::send_message(&socket, socket_direction, &p0_response);
+    }
+    if let Some(socket_direction) = instructions.p1_socket.as_ref() {
+        let code = instructions.p1_code;
+        let started = u8::from(instructions.started);
+        let turn = match instructions.turn {
+            0 | 1 => 1u8,
+            _ => 0u8,
+        };
+        let won = match  instructions.winner {
+            2 => 1u8,
+            _ => 0u8
+        };
+        let p1_response = GameResponse3T::build_move_response(code, turn, started, &instructions.board, won);
+        let _ = connection::send_message(&socket, socket_direction, &p1_response);
+    }
+}
+
+fn win_func(){
+    //panic!();
+}

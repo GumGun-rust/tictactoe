@@ -54,13 +54,31 @@ mod test {
         let p0_code = [1,0,0,0,0,0,0,0];
         let p1_socket = UdpSocket::bind("127.0.0.1:50011").unwrap();
         let p1_code = [2,0,0,0,0,0,0,0];
+        
         create_board(&board, &p0_socket, &p0_code);
         connect_board(&board, &p1_socket, &p1_code);
+        receive_data(&p0_socket);
+        receive_data(&p1_socket);
         make_move(&board, &p0_socket, &p0_code, 0, 0);
+        receive_data(&p0_socket);
+        receive_data(&p1_socket);
         make_move(&board, &p1_socket, &p1_code, 1, 0);
+        receive_data(&p0_socket);
+        receive_data(&p1_socket);
         make_move(&board, &p0_socket, &p0_code, 0, 1);
+        receive_data(&p0_socket);
+        receive_data(&p1_socket);
         make_move(&board, &p1_socket, &p1_code, 1, 1);
+        receive_data(&p0_socket);
+        receive_data(&p1_socket);
         make_move(&board, &p0_socket, &p0_code, 0, 2);
+        receive_data(&p0_socket);
+        receive_data(&p1_socket);
+        
+        create_board(&board, &p0_socket, &p0_code);
+        connect_board(&board, &p1_socket, &p1_code);
+        receive_data(&p0_socket);
+        receive_data(&p1_socket);
     }
     
     #[allow(dead_code, unused_variables)]
@@ -159,6 +177,17 @@ mod test {
                 for y in 0..3 {
                     println!("\t{} {} {}", raw_buffer[11+y*3], raw_buffer[12+y*3], raw_buffer[13+y*3]);
                 }
+            }
+            4 => {
+                println!("connect");
+                println!("\tturn {}",raw_buffer[1]);
+                println!("\tstarted {}",raw_buffer[2]);
+                println!("player Id {}", raw_buffer[3]);
+                for y in 0..3 {
+                    println!("\t{} {} {}", raw_buffer[11+y*3], raw_buffer[12+y*3], raw_buffer[13+y*3]);
+                }
+                println!("won {}", raw_buffer[20]);
+                
             }
             _ => {
                 println!("posible error o falta de implementacion de printer");

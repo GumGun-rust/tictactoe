@@ -1,14 +1,18 @@
 mod board;
 mod commands;
 mod errors;
+mod responses;
 //local modules
 use std::net::SocketAddr;
+
+pub use crate::tictactoe::responses::GameResponse3T;
+
+pub use crate::tictactoe::responses::BroadcastInstructions;
 
 pub use commands::*;
 pub use board::*;
 pub use errors::*;
 
-#[derive(Default)]
 pub struct Game{
     pub started: bool,
     pub last: Option<Player>,
@@ -19,18 +23,7 @@ pub struct Game{
     pub p1_code:u64,
     pub p1_socket:Option<SocketAddr>,
     pub board: Board,
-}
-
-#[derive(Debug, Default)]
-pub struct BroadcastInstructions{
-    pub p0_code:u64,
-    pub p0_socket:Option<SocketAddr>,
-    pub p1_code:u64,
-    pub p1_socket:Option<SocketAddr>,
-    pub turn: u8,
-    pub started: bool,
-    pub board: [u8; 9],
-    
+    pub winner: Option<Player>,
 }
 
 impl Game{
@@ -45,6 +38,7 @@ impl Game{
             p1_code:0,
             p1_socket:None,
             last:None,
+            winner:None,
         }
     }
     
@@ -69,7 +63,7 @@ impl Game{
                 self.p0_connected = true;
             }
             
-            let mut holder = BroadcastInstructions{
+            let mut holder = responses::BroadcastInstructions{
                 p0_code:self.p0_code,
                 p0_socket:self.p0_socket.clone(),
                 p1_code:self.p1_code,
@@ -77,6 +71,7 @@ impl Game{
                 turn: self.check_turn(),
                 started: self.started,
                 board: [0; 9],
+                winner: 0,
             };
             self.board.board_to_simple(&mut holder.board);
             Ok(holder)
@@ -95,7 +90,8 @@ impl Game{
                     self.p1_socket = args.player_socket;
                 }
             }
-            let mut holder = BroadcastInstructions{
+            
+            let mut holder = responses::BroadcastInstructions{
                 p0_code:self.p0_code,
                 p0_socket:self.p0_socket.clone(),
                 p1_code:self.p1_code,
@@ -103,6 +99,7 @@ impl Game{
                 turn: self.check_turn(),
                 started: self.started,
                 board: [0; 9],
+                winner: 0,
             };
             self.board.board_to_simple(&mut holder.board);
             Ok(holder)
@@ -122,7 +119,21 @@ impl Game{
         }
     }
     
-    pub fn play(&mut self, args:GameMoveInst) -> Result<Option<Player>, GameErrors> {
+    fn check_winner(&self) -> u8 {
+        let remove_me = match self.winner {
+            None => 0,
+            Some(player) => {
+                match player {
+                    Player::P0 => 1,
+                    Player::P1 => 2,
+                }
+            }
+        };
+        println!("this is a debug line {}", remove_me);
+        remove_me
+    }
+    
+    pub fn play(&mut self, args:GameMoveInst) -> Result<(Option<Player>, BroadcastInstructions), GameErrors> {
         /*
         pub board:u64,
         pub player_code:u64,
@@ -147,9 +158,24 @@ impl Game{
         if !Board::index_valid(args.x_cord) || !Board::index_valid(args.y_cord) {
             return Err(GameErrors::BadIndex);
         }
+        
+        let response_holder = self.board.play(args.x_cord, args.y_cord, player)?;
         self.last = Some(player);
         self.started = true;
-        self.board.play(args.x_cord, args.y_cord, player)
+        self.winner = response_holder;
+        
+        let mut holder = responses::BroadcastInstructions{
+            p0_code:self.p0_code,
+            p0_socket:self.p0_socket.clone(),
+            p1_code:self.p1_code,
+            p1_socket:self.p1_socket.clone(),
+            turn: self.check_turn(),
+            started: self.started,
+            board: [0; 9],
+            winner: self.check_winner(),
+        };
+        self.board.board_to_simple(&mut holder.board);
+        Ok((response_holder, holder))
     }
     
     fn player_from_id(&self, player_id:u64) -> Option<Player> {

@@ -79,18 +79,3 @@ impl GameCommand3T {
         Ok(())
     }
 }
-
-pub struct GameResponse3T {}
-
-impl GameResponse3T {
-    pub fn build_connect_response(player_code:u64, player_turn:u8, started:u8, board:&[u8]) -> [u8; 64] {
-        let mut holder = [0u8; 64];
-        holder[0] = u8::from(crate::connection::CommandType::Connect);
-        holder[1] = player_turn;
-        holder[2] = started;
-        holder[3..11].clone_from_slice(&player_code.to_le_bytes());
-        holder[11..20].clone_from_slice(board);
-        holder
-    }
-}
-
