@@ -144,6 +144,7 @@ impl Board{
                 }
             }
         }
+        //println!("{:?}", board);
     }
 }
 

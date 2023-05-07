@@ -8,6 +8,7 @@ mod test;
 use tictactoe::GameCommand3T;
 use tictactoe::GameErrors;
 
+use crate::tictactoe::GameResponse3T;
 
 use crate::tictactoe::Player;
 
@@ -41,12 +42,13 @@ fn main() {
                         }
                     },
                     GameCommand3T::Connect(connect_cmd) => {
-                        match handle_connect(&mut games, connect_cmd, &socket) {
+                        match handle_connect(&mut games, connect_cmd) {
                             Err(err_str) => {
                                 println!("error connecting :{}", err_str);
                                 continue;
                             },
-                            Ok(()) => {
+                            Ok(broadcast_instructions) => {
+                                handle_connect_response(&socket, broadcast_instructions);
                                 println!("connected succesfully");
                             }
                         }
@@ -99,7 +101,7 @@ fn handle_create(games:&mut HashMap<u64,tictactoe::Game>, create_cmd:GameCreateI
     Ok(())
 }
 
-fn handle_connect(games:&mut HashMap<u64,tictactoe::Game>, create_cmd:GameConnectInst, socket:&UdpSocket) -> Result<(), &'static str> {
+fn handle_connect(games:&mut HashMap<u64,tictactoe::Game>, create_cmd:GameConnectInst) -> Result<tictactoe::BroadcastInstructions, &'static str> {
     println!("-----------------------------------------");
     println!("connect");
     println!("-----------------------------------------");
@@ -108,25 +110,48 @@ fn handle_connect(games:&mut HashMap<u64,tictactoe::Game>, create_cmd:GameConnec
             return Err("invalid Board Code (board does not exist)");
         },
         Some(game) => {
-            game.print();
+            //game.print();
             match game.connect(create_cmd) {
                 Err(error) => {
                     match error {
-                        GameErrors::BoardFull => { return Err("board is already full") },
-                        GameErrors::PlayerNotOnGame => { return Err("player not on game") },
-                        _ => { return Err("programer missed a error code")}
+                        GameErrors::BoardFull => Err("board is already full"),
+                        GameErrors::PlayerNotOnGame => Err("player not on game"),
+                        _ => Err("programer missed a error code")
                     }
                 },
-                Ok(broadcast) => {
-                    connection::send_message(socket, broadcast.p0_socket.as_ref().unwrap(), connection::CommandType::Connect, &broadcast.board);
-                    println!("{:?}", broadcast);
+                Ok(broadcast_instructions) => {
+                    Ok(broadcast_instructions)
                 }
             }
-            game.print();
         }
     }
-    Ok(())
 }
+
+fn handle_connect_response(socket:&UdpSocket, instructions:tictactoe::BroadcastInstructions){
+    //println!("{:?}", instructions);
+    //let bytes = [0u8; 64];
+    if let Some(socket_direction) = instructions.p0_socket.as_ref() {
+        let code = instructions.p0_code;
+        let started = u8::from(instructions.started);
+        let turn = match instructions.turn {
+            0 | 2 => 1u8,
+            _ => 0u8,
+        };
+        let p0_response = GameResponse3T::build_connect_response(code, turn, started, &instructions.board);
+        let _ = connection::send_message(&socket, socket_direction, &p0_response);
+    }
+    if let Some(socket_direction) = instructions.p1_socket.as_ref() {
+        let code = instructions.p1_code;
+        let started = u8::from(instructions.started);
+        let turn = match instructions.turn {
+            0 | 1 => 1u8,
+            _ => 0u8,
+        };
+        let p1_response = GameResponse3T::build_connect_response(code, turn, started, &instructions.board);
+        let _ = connection::send_message(&socket, socket_direction, &p1_response);
+    }
+}
+
 
 fn handle_move(games:&mut HashMap<u64,tictactoe::Game>, move_cmd:GameMoveInst) -> Result<Option<Player>, &'static str> {
     println!("-----------------------------------------");

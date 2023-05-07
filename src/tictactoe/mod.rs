@@ -13,34 +13,36 @@ pub struct Game{
     pub started: bool,
     pub last: Option<Player>,
     pub p0_connected:bool,
-    pub p0:u64,
+    pub p0_code:u64,
     pub p0_socket:Option<SocketAddr>,
     pub p1_connected:bool,
-    pub p1:u64,
+    pub p1_code:u64,
     pub p1_socket:Option<SocketAddr>,
     pub board: Board,
 }
 
 #[derive(Debug, Default)]
 pub struct BroadcastInstructions{
-    pub p0_connected:bool,
+    pub p0_code:u64,
     pub p0_socket:Option<SocketAddr>,
-    pub p1_connected:bool,
+    pub p1_code:u64,
     pub p1_socket:Option<SocketAddr>,
+    pub turn: u8,
+    pub started: bool,
     pub board: [u8; 9],
     
 }
 
 impl Game{
-    pub fn new(p0:u64, p0_socket:SocketAddr) -> Self {
+    pub fn new(p0_code:u64, p0_socket:SocketAddr) -> Self {
         Self{
             board:Board::new(),
             started: false,
             p0_connected:true,
-            p0,
+            p0_code,
             p0_socket:Some(p0_socket),
             p1_connected:false,
-            p1:0,
+            p1_code:0,
             p1_socket:None,
             last:None,
         }
@@ -57,20 +59,23 @@ impl Game{
                 if self.p1_connected {
                     return Err(GameErrors::BoardFull);
                 } else {
-                    self.p1 = args.player_code;
+                    self.p1_code = args.player_code;
                     self.p1_socket = args.player_socket;
                     self.p1_connected = true;
                 }
             }else {
-                self.p0 = args.player_code;
+                self.p0_code = args.player_code;
                 self.p0_socket = args.player_socket;
                 self.p0_connected = true;
             }
+            
             let mut holder = BroadcastInstructions{
-                p0_connected:self.p0_connected,
+                p0_code:self.p0_code,
                 p0_socket:self.p0_socket.clone(),
-                p1_connected:self.p1_connected,
+                p1_code:self.p1_code,
                 p1_socket:self.p1_socket.clone(),
+                turn: self.check_turn(),
+                started: self.started,
                 board: [0; 9],
             };
             self.board.board_to_simple(&mut holder.board);
@@ -91,10 +96,12 @@ impl Game{
                 }
             }
             let mut holder = BroadcastInstructions{
-                p0_connected:self.p0_connected,
+                p0_code:self.p0_code,
                 p0_socket:self.p0_socket.clone(),
-                p1_connected:self.p1_connected,
+                p1_code:self.p1_code,
                 p1_socket:self.p1_socket.clone(),
+                turn: self.check_turn(),
+                started: self.started,
                 board: [0; 9],
             };
             self.board.board_to_simple(&mut holder.board);
@@ -103,6 +110,17 @@ impl Game{
         
     }
     
+    fn check_turn(&self) -> u8{
+        match self.last {
+            None => 0,
+            Some(player) => {
+                match player {
+                    Player::P0 => 1,
+                    Player::P1 => 2,
+                }
+            }
+        }
+    }
     
     pub fn play(&mut self, args:GameMoveInst) -> Result<Option<Player>, GameErrors> {
         /*
@@ -135,33 +153,28 @@ impl Game{
     }
     
     fn player_from_id(&self, player_id:u64) -> Option<Player> {
-        if player_id == self.p0 {
+        if player_id == self.p0_code {
             return Some(Player::P0);
         }
-        if player_id == self.p1 {
+        if player_id == self.p1_code {
             return Some(Player::P1);
         }
         None
     }
     
-    
+    #[allow(dead_code)]
     pub fn print(&self) {
         dbg!(self.started);
         dbg!(self.p0_connected);
-        dbg!(self.p0);
+        dbg!(self.p0_code);
         dbg!(self.p0_socket);
         dbg!(self.p1_connected);
-        dbg!(self.p1);
+        dbg!(self.p1_code);
         dbg!(self.p1_socket);
     }
     
     pub fn print_board(&self) {
         self.board.print();
-    }
-    
-    pub fn broadcast_ev_move(&self) {
-        
-        
     }
     
 }

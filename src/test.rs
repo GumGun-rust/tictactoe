@@ -99,6 +99,7 @@ mod test {
         let p1_socket = UdpSocket::bind("127.0.0.1:54411").unwrap();
         connect_board(&board, &p1_socket, &p1_code);
         receive_data(&p0_socket);
+        receive_data(&p1_socket);
     }
     
     #[allow(dead_code, unused_variables)]
@@ -144,7 +145,26 @@ mod test {
         let mut buffer = [0; 64];
         let (amt, _src) = socket.recv_from(&mut buffer).expect("read should not crash");
         let buffer = &buffer[..amt];
-        println!("{:?}", buffer);
+        small_interpreter(buffer);
+    }
+    
+    fn small_interpreter(raw_buffer:&[u8]) {
+        //println!("{:?}", raw_buffer);
+        match raw_buffer[0] {
+            2 => {
+                println!("connect");
+                println!("\tturn {}",raw_buffer[1]);
+                println!("\tstarted {}",raw_buffer[2]);
+                //println!("player Id {}", raw_buffer[3..11]);
+                for y in 0..3 {
+                    println!("\t{} {} {}", raw_buffer[11+y*3], raw_buffer[12+y*3], raw_buffer[13+y*3]);
+                }
+            }
+            _ => {
+                println!("posible error o falta de implementacion de printer");
+            }
+        }
+        
     }
     
 }

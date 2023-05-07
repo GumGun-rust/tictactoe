@@ -95,17 +95,15 @@ pub fn fill_command(socket:&UdpSocket) -> Option<tictactoe::GameCommand3T> {
     
 }
 
-pub fn send_message(local_socket:&UdpSocket, target:&SocketAddr, command:CommandType, raw_buffer:&[u8]) -> Result<(), ()> {
+pub fn send_message(local_socket:&UdpSocket, target:&SocketAddr, formated_buffer:&[u8]) -> Result<(), ()> {
+    /*
     let mut buffer = [0; 64];
     buffer[0] = u8::from(command);
     buffer[1..raw_buffer.len()+1].clone_from_slice(raw_buffer);
     let send_buffer = &buffer[0..raw_buffer.len()+1];
-    println!("---------------------------");
-    println!("---------------------------");
-    println!("---------------------------");
-    println!("---------------------------");
-    println!("---------------------------");
     let _ = local_socket.send_to(send_buffer, target);
+    */
+    let _ = local_socket.send_to(formated_buffer, target);
     Ok(())
 }
 
