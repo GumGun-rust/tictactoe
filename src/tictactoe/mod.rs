@@ -25,6 +25,7 @@ pub struct Game{
     pub p1_socket:Option<SocketAddr>,
     pub board: Board,
     pub winner: Option<Player>,
+    pub connected: bool,
 }
 
 impl Game{
@@ -40,6 +41,7 @@ impl Game{
             p1_socket:None,
             last:None,
             winner:None,
+            connected:false,
         }
     }
     
@@ -49,8 +51,46 @@ impl Game{
         pub player_code:u64,
         pub player_socket:Option<SocketAddr>,
         */
+        
+        if !self.connected {
+            self.p1_code = args.player_code;
+            self.p1_socket = args.player_socket;
+            self.p1_connected = true;
+            
+        } else {
+            let player = match self.player_from_id(args.player_code) {
+                Some(player) => player,
+                None => { return Err(GameErrors::PlayerNotOnGame) }
+            };
+            
+            match player {
+                Player::P0 => {
+                    self.p0_socket = args.player_socket;
+                }
+                Player::P1 => {
+                    self.p1_socket = args.player_socket;
+                }
+            }
+            
+        }
+        
+        let mut holder = responses::BroadcastInstructions{
+            p0_code:self.p0_code,
+            p0_socket:self.p0_socket.clone(),
+            p1_code:self.p1_code,
+            p1_socket:self.p1_socket.clone(),
+            board_id: args.board,
+            turn: self.check_turn(),
+            started: self.started,
+            board: [0; 9],
+            winner: 0,
+        };
+        self.board.board_to_simple(&mut holder.board);
+        Ok(holder)
+        /*
         if !self.started {
             if self.p0_connected {
+                
                 if self.p1_connected {
                     return Err(GameErrors::BoardFull);
                 } else {
@@ -77,6 +117,7 @@ impl Game{
             };
             self.board.board_to_simple(&mut holder.board);
             Ok(holder)
+            
         } else {
             
             let player = match self.player_from_id(args.player_code) {
@@ -107,7 +148,7 @@ impl Game{
             self.board.board_to_simple(&mut holder.board);
             Ok(holder)
         }
-        
+        */
     }
     
     fn check_turn(&self) -> u8{
