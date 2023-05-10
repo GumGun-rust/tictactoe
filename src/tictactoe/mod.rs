@@ -12,6 +12,7 @@ pub use crate::tictactoe::responses::BroadcastInstructions;
 pub use commands::*;
 pub use board::*;
 pub use errors::*;
+pub use responses::*;
 
 pub struct Game{
     pub started: bool,
@@ -64,10 +65,11 @@ impl Game{
             }
             
             let mut holder = responses::BroadcastInstructions{
-                p0_code:self.p0_code,
-                p0_socket:self.p0_socket.clone(),
-                p1_code:self.p1_code,
-                p1_socket:self.p1_socket.clone(),
+                p0_code: self.p0_code,
+                p0_socket: self.p0_socket.clone(),
+                p1_code: self.p1_code,
+                p1_socket: self.p1_socket.clone(),
+                board_id: args.board,
                 turn: self.check_turn(),
                 started: self.started,
                 board: [0; 9],
@@ -96,6 +98,7 @@ impl Game{
                 p0_socket:self.p0_socket.clone(),
                 p1_code:self.p1_code,
                 p1_socket:self.p1_socket.clone(),
+                board_id: args.board,
                 turn: self.check_turn(),
                 started: self.started,
                 board: [0; 9],
@@ -169,6 +172,7 @@ impl Game{
             p0_socket:self.p0_socket.clone(),
             p1_code:self.p1_code,
             p1_socket:self.p1_socket.clone(),
+            board_id: args.board,
             turn: self.check_turn(),
             started: self.started,
             board: [0; 9],

@@ -40,7 +40,7 @@ const MOVE_COMMAND_BUFFSIZE:usize = 8+8+1+1;
 
 impl GameCommand3T {
     
-    pub fn parse_create_command(&mut self, buff:&[u8], socket:SocketAddr) -> Result<(), &'static str>{
+    pub fn parse_create_command(&mut self, buff:&[u8], socket:SocketAddr) -> Result<(), &'static str> {
         if buff.len() != CREATE_COMMAND_BUFFSIZE {
             return Err("incorrect buff size");
         }
@@ -52,7 +52,7 @@ impl GameCommand3T {
         Ok(())
     }
     
-    pub fn parse_connect_command(&mut self, buff:&[u8], socket:SocketAddr) -> Result<(), &'static str>{
+    pub fn parse_connect_command(&mut self, buff:&[u8], socket:SocketAddr) -> Result<(), &'static str> {
         if buff.len() != CONNECT_COMMAND_BUFFSIZE {
             return Err("incorrect buff size");
         }
@@ -64,7 +64,7 @@ impl GameCommand3T {
         Ok(())
     }
     
-    pub fn parse_move_command(&mut self, buff:&[u8], socket:SocketAddr) -> Result<(), &'static str>{
+    pub fn parse_move_command(&mut self, buff:&[u8], socket:SocketAddr) -> Result<(), &'static str> {
         if buff.len() < MOVE_COMMAND_BUFFSIZE {
             return Err("Incorrect buffer size");
         }

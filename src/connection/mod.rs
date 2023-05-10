@@ -46,6 +46,7 @@ pub fn fill_command(socket:&UdpSocket) -> Option<tictactoe::GameCommand3T> {
     let (amt, src) = socket.recv_from(&mut buffer).expect("read should not crash");
     let mut instruction_packet: Option<tictactoe::GameCommand3T> = Some(tictactoe::GameCommand3T::Empty);
     let buffer = &buffer[..amt];
+    println!("{:?}", buffer);
     let command_type = CommandType::try_from(buffer[0]);
     match command_type {
         Err(_) => {
