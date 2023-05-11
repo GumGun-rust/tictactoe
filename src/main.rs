@@ -12,10 +12,11 @@ use crate::tictactoe::GameResponse3T;
 
 use crate::tictactoe::Player;
 
-fn main() {
+
+#[tokio::main]
+async fn main() {
     let mut games:HashMap<u64,tictactoe::Game> = HashMap::new();
-    let socket = UdpSocket::bind("127.0.0.1:50000").expect("socket is being used");
-    
+    let socket = UdpSocket::bind("10.0.44.250:50000").expect("socket is being used");
     
     loop{
         let command:Option<tictactoe::GameCommand3T> = connection::fill_command(&socket);
@@ -68,7 +69,7 @@ fn main() {
                                         println!("---------------------------------");
                                         println!("wonnnn!!! {:?}", winner);
                                         println!("---------------------------------");
-                                        win_func();
+                                        win_func().await();
                                         games.remove(&board_key);
                                     }
                                 }
@@ -135,7 +136,6 @@ fn handle_connect(games:&mut HashMap<u64,tictactoe::Game>, create_cmd:tictactoe:
             match game.connect(create_cmd) {
                 Err(error) => {
                     match error {
-                        GameErrors::BoardFull => Err("board is already full"),
                         GameErrors::PlayerNotOnGame => Err("player not on game"),
                         _ => Err("programer missed a error code")
                     }
@@ -193,6 +193,7 @@ fn handle_move(games:&mut HashMap<u64,tictactoe::Game>, move_cmd:tictactoe::Game
                         GameErrors::BadIndex => Err("bad index"),
                         _ => Err("programer missed a relevant error type :(")
                     }
+                    
                 },
                 Ok(potencial_winner_holder) => {
                     Ok(potencial_winner_holder)
@@ -238,6 +239,6 @@ fn handle_move_response(socket:&UdpSocket, instructions:tictactoe::BroadcastInst
     }
 }
 
-fn win_func(){
+async fn win_func(){
     //panic!();
 }

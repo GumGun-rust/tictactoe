@@ -48,6 +48,7 @@ impl GameCommand3T {
         holder.board = u64::from_le_bytes(buff[0..8].try_into().expect("right value array"));
         holder.player_code = u64::from_le_bytes(buff[8..16].try_into().expect("right value array"));
         holder.player_socket = Some(socket);
+        println!("{:?}", &holder);
         *self = GameCommand3T::Create(holder);
         Ok(())
     }
@@ -60,6 +61,7 @@ impl GameCommand3T {
         holder.board = u64::from_le_bytes(buff[0..8].try_into().expect("right value array"));
         holder.player_code = u64::from_le_bytes(buff[8..16].try_into().expect("right value array"));
         holder.player_socket = Some(socket);
+        println!("{:?}", &holder);
         *self = GameCommand3T::Connect(holder);
         Ok(())
     }

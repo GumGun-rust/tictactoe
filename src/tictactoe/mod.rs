@@ -53,9 +53,17 @@ impl Game{
         */
         
         if !self.connected {
-            self.p1_code = args.player_code;
-            self.p1_socket = args.player_socket;
-            self.p1_connected = true;
+            if self.p0_code == args.player_code {
+                self.p0_code = args.player_code;
+                self.p0_socket = args.player_socket;
+                self.p0_connected = true;
+                
+            }else{
+                self.p1_code = args.player_code;
+                self.p1_socket = args.player_socket;
+                self.p1_connected = true;
+                
+            }
             
         } else {
             let player = match self.player_from_id(args.player_code) {
