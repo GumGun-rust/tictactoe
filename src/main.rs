@@ -12,11 +12,17 @@ use crate::tictactoe::GameResponse3T;
 
 use crate::tictactoe::Player;
 
+use aws_sdk_sns as sns;
+
+const TOPIC_ARN:&str = "arn:aws:sns:us-east-1:086672671519:winnerProy.fifo";
 
 #[tokio::main]
 async fn main() {
     let mut games:HashMap<u64,tictactoe::Game> = HashMap::new();
     let socket = UdpSocket::bind("10.0.44.250:50000").expect("socket is being used");
+    
+    let config = aws_config::load_from_env().await;
+    let mut sns_client = sns::Client::new(&config);
     
     loop{
         let command:Option<tictactoe::GameCommand3T> = connection::fill_command(&socket);
@@ -59,6 +65,7 @@ async fn main() {
                                 continue;
                             },
                             Ok((possible_winner, broadcast_instructions)) => {
+                                let (p0_code, p1_code) = (broadcast_instructions.p0_code, broadcast_instructions.p1_code);
                                 handle_move_response(&socket, broadcast_instructions);
                                 match possible_winner {
                                     None => {
@@ -69,7 +76,7 @@ async fn main() {
                                         println!("---------------------------------");
                                         println!("wonnnn!!! {:?}", winner);
                                         println!("---------------------------------");
-                                        win_func().await();
+                                        win_func(&mut sns_client, p0_code, p1_code, winner).await;
                                         games.remove(&board_key);
                                     }
                                 }
@@ -239,6 +246,23 @@ fn handle_move_response(socket:&UdpSocket, instructions:tictactoe::BroadcastInst
     }
 }
 
-async fn win_func(){
+async fn win_func(sns_client:&mut sns::Client, p0_code:u64, p1_code:u64, player_w:Player){
+    let (winner,losser) = match player_w{
+        Player::P0 => {
+            (p0_code, p1_code)
+        },
+        Player::P1 => {
+            (p1_code, p0_code)
+        },
+    };
+    let rsp = sns_client
+        .publish()
+        .topic_arn(TOPIC_ARN)
+        //.message_deduplication_id()
+        .message_group_id("winner")
+        .message(format!("{} {}", winner, losser))
+        .send()
+        .await.unwrap();
+    println!("{:?}", rsp);
     //panic!();
 }
